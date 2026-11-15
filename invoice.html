@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>TAJ Medical Store — Invoice Copy</title>
+<style>
+:root{font-family:Inter,"Segoe UI",Arial,sans-serif;color:#17243a;background:#edf2f8;font-synthesis:none}
+*{box-sizing:border-box}body{margin:0;padding:22px 12px}.wrap{max-width:900px;margin:0 auto}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 14px}
+.brand{font-weight:850;letter-spacing:.08em;color:#153f78;font-size:13px}.sub{font-size:11px;color:#64748b;margin-top:4px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid #9aabc0;background:#fff;color:#1e4778;border-radius:7px;padding:10px 14px;font-weight:750;font-size:12px;cursor:pointer}
+.btn.primary{background:#174d91;color:#fff;border-color:#174d91}.btn:disabled{opacity:.55;cursor:wait}
+.paper{background:#fff;border:1px solid #d7e0eb;border-radius:10px;padding:28px;box-shadow:0 8px 28px #15385f12}
+.state{padding:42px 22px;text-align:center;color:#63748a;line-height:1.6}.state strong{display:block;color:#183e70;font-size:18px;margin-bottom:8px}
+.head{display:flex;justify-content:space-between;gap:22px;border-bottom:2px solid #1d4c85;padding-bottom:17px}.head h1{font-size:23px;margin:0 0 6px;color:#153f78}.muted{color:#68788c;font-size:12px;line-height:1.55}.invno{text-align:right;min-width:170px}.invno strong{font-size:17px;color:#163f78}
+.meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:17px 0}.meta>div,.stat{border:1px solid #e0e7f0;background:#f8fafc;border-radius:7px;padding:11px}.meta small,.stat small{display:block;font-size:9px;font-weight:800;letter-spacing:.07em;color:#718096;text-transform:uppercase;margin-bottom:5px}.meta strong{font-size:13px;overflow-wrap:anywhere}
+.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:12px;margin:12px 0 4px}th{background:#eaf0f7;color:#1a426f;text-align:left;font-size:10px;letter-spacing:.035em;text-transform:uppercase}th,td{border:1px solid #dce4ee;padding:9px 8px}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.totals{margin:16px 0 0 auto;max-width:390px}.line{display:flex;justify-content:space-between;gap:18px;padding:8px 0;border-bottom:1px solid #e7ecf2;font-size:13px}.line strong{font-variant-numeric:tabular-nums;white-space:nowrap}.line.grand{border-top:2px solid #1d4c85;color:#153f78;font-size:18px;font-weight:850;margin-top:5px;padding-top:12px}.line.due{color:#9b5100;font-weight:800}.status{display:inline-flex;padding:4px 8px;border-radius:20px;background:#e7f5eb;color:#17643c;font-size:10px;font-weight:800}.status.due{background:#fff0d9;color:#975400}
+.foot{margin-top:21px;padding-top:13px;border-top:1px solid #e0e7f0;text-align:center;color:#718096;font-size:10px;line-height:1.5}.smallprint{font-size:10px;color:#8491a2;margin-top:9px;text-align:right}
+@media(max-width:640px){body{padding:10px 7px}.paper{padding:15px}.head{display:block}.invno{text-align:left;margin-top:10px}.meta{grid-template-columns:1fr 1fr}.head h1{font-size:20px}table{font-size:10px}th,td{padding:7px 5px}.totals{max-width:100%}}
+@media print{body{padding:0;background:#fff}.top,.smallprint{display:none!important}.paper{border:0;box-shadow:none;border-radius:0;padding:0}.wrap{max-width:none}.foot{margin-top:10px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top"><div><div class="brand">TAJ MEDICAL STORE</div><div class="sub">Customer invoice copy · no customer login required</div></div><div class="actions"><button class="btn" id="refresh">Refresh</button><button class="btn primary" id="print">Print / Save PDF</button></div></header>
+<div id="state" class="paper state"><strong>Loading invoice…</strong>Please wait while we retrieve the invoice copy.</div>
+<article id="invoice" class="paper" hidden></article>
+<div id="updated" class="smallprint"></div>
+</div>
+<script type="module">
+import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { FIREBASE_CONFIG } from './firebase-config.js';
+
+const $ = id => document.getElementById(id);
+const state = $('state'), panel = $('invoice'), updated = $('updated');
+const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const money = value => 'Rs ' + (Number(value) || 0).toLocaleString('en-PK',{minimumFractionDigits:2,maximumFractionDigits:2});
+const params = new URLSearchParams(location.search);
+const token = (params.get('t') || '').toLowerCase();
+let db = null;
+
+function showState(title, message) {
+  state.hidden = false;
+  panel.hidden = true;
+  state.innerHTML = `<strong>${esc(title)}</strong>${esc(message)}`;
+}
+function renderInvoice(x) {
+  const store = x.store || {};
+  const items = Array.isArray(x.items) ? x.items : [];
+  const date = x.dateTime && !Number.isNaN(new Date(x.dateTime).getTime()) ? new Date(x.dateTime).toLocaleString('en-PK') : '—';
+  const balanceDue = Number(x.balanceDue || 0);
+  const payment = String(x.paymentStatus || (balanceDue > 0 ? 'Credit' : 'Paid'));
+  const rows = items.map(item => {
+    const qty = Math.max(0, Number(item.qty || 0) - Number(item.returnedQty || 0));
+    const originalQty = Number(item.qty || 0);
+    const amount = originalQty > 0 ? Number(item.total || 0) * qty / originalQty : Number(item.total || 0);
+    return `<tr><td>${esc(item.name || 'Medicine')}${Number(item.returnedQty || 0) > 0 ? `<br><small>Returned: ${Number(item.returnedQty)}</small>` : ''}</td><td>${esc(item.batchNo || '—')}</td><td class="num">${qty}</td><td class="num">${money(item.unitPrice)}</td><td class="num">${Number(item.discountPercent || 0)}%</td><td class="num">${money(amount)}</td></tr>`;
+  }).join('');
+  panel.innerHTML = `
+    <div class="head"><div><h1>${esc(store.name || 'TAJ MEDICAL STORE')}</h1><div class="muted">${esc(store.address || '')}${store.phone ? `<br>Store contact: ${esc(store.phone)}` : ''}</div></div><div class="invno"><div class="muted">CUSTOMER INVOICE COPY</div><strong>${esc(x.invoiceNo || '—')}</strong><div class="muted">${esc(date)}</div></div></div>
+    <div class="meta"><div><small>Customer</small><strong>${esc(x.customerName || 'Walk-in customer')}</strong></div><div><small>Invoice number</small><strong>${esc(x.invoiceNo || '—')}</strong></div><div><small>Payment status</small><span class="status ${balanceDue > 0 ? 'due' : ''}">${esc(payment)}</span></div></div>
+    <div class="table-wrap"><table><thead><tr><th>Medicine</th><th>Batch</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Disc.</th><th class="num">Amount</th></tr></thead><tbody>${rows || '<tr><td colspan="6">No item lines on this invoice.</td></tr>'}</tbody></table></div>
+    <div class="totals"><div class="line"><span>Subtotal</span><strong>${money(x.subtotal)}</strong></div><div class="line grand"><span>Grand total</span><strong>${money(x.grandTotal)}</strong></div><div class="line"><span>Amount received</span><strong>${money(x.amountReceived)}</strong></div><div class="line"><span>Previous balance</span><strong>${money(x.previousBalance)}</strong></div><div class="line"><span>Current invoice due</span><strong>${money(x.balanceDue)}</strong></div><div class="line ${Number(x.totalReceivable || 0) > 0 ? 'due' : ''}"><span>Total receivable</span><strong>${money(x.totalReceivable)}</strong></div></div>
+    <div class="foot">This electronic copy was retrieved from TAJ Medical Store's invoice archive.<br>This link displays one invoice only. Keep it private and contact the store for corrections or returns.</div>`;
+  state.hidden = true;
+  panel.hidden = false;
+  updated.textContent = 'Invoice copy · retrieved ' + new Date().toLocaleTimeString('en-PK');
+}
+async function loadInvoice() {
+  if (!/^[a-f0-9]{48}$/.test(token)) {
+    showState('Invalid invoice link', 'Please scan the QR printed on your TAJ Medical Store invoice or contact the store.');
+    return;
+  }
+  showState('Loading invoice…', 'Retrieving this single invoice from TAJ Medical Store.');
+  try {
+    const snapshot = await getDoc(doc(db, 'tms_publicInvoices', token));
+    if (!snapshot.exists() || snapshot.data().active !== true) {
+      showState('Invoice not found', 'This invoice link may be incorrect, disabled, or not yet uploaded by the store.');
+      return;
+    }
+    renderInvoice(snapshot.data());
+  } catch (error) {
+    console.error('TAJ invoice portal error:', error);
+    const message = error?.code === 'permission-denied'
+      ? 'The invoice access rule is not published yet. Please contact TAJ Medical Store.'
+      : 'The invoice service could not be reached. Check your internet connection and try again.';
+    showState('Unable to retrieve invoice', message);
+  }
+}
+$('refresh').addEventListener('click', loadInvoice);
+$('print').addEventListener('click', () => window.print());
+try {
+  if (!FIREBASE_CONFIG?.projectId || FIREBASE_CONFIG.projectId !== 'taj-medical-store-9a3ad') throw new Error('Wrong Firebase project configuration.');
+  const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
+  db = getFirestore(app);
+  loadInvoice();
+} catch (error) {
+  console.error(error);
+  showState('Invoice service unavailable', 'The portal Firebase configuration could not be loaded. Please contact the store.');
+}
+</script>
+</body>
+</html>
