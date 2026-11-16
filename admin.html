@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>TAJ Medical Store — Invoice Admin</title>
+<style>
+:root{font-family:Inter,Segoe UI,Arial,sans-serif;color:#172033;background:#f1f5fa;font-synthesis:none}*{box-sizing:border-box}body{margin:0;min-height:100vh}
+header{background:#102f5c;color:#fff;padding:15px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 12px #0b24451f}.brand{font-weight:800;letter-spacing:.04em}.brand small{display:block;font-size:11px;font-weight:500;opacity:.8;margin-top:3px}.header-right{display:flex;align-items:center;gap:12px;font-size:12px}.wrap{max-width:1280px;margin:22px auto;padding:0 16px}.card{background:#fff;border:1px solid #d7e0ec;border-radius:10px;box-shadow:0 8px 24px #142e4b0b;padding:18px;margin-bottom:16px}.login{max-width:430px;margin:8vh auto}.login h1{font-size:21px;color:#133d75;margin:0 0 5px}.muted{color:#6c7b90;font-size:12px;line-height:1.5}.field{margin-top:14px}.field label{display:block;font-size:12px;font-weight:700;margin-bottom:6px}.field input{width:100%;border:1px solid #aabbd0;border-radius:6px;padding:11px 12px;font:inherit;font-size:14px}.btn{border:1px solid #9aacc2;background:#fff;color:#173a6a;border-radius:6px;padding:9px 13px;font-size:12px;font-weight:700;cursor:pointer}.btn.primary{background:#164b91;border-color:#164b91;color:#fff}.btn.danger{color:#a32929;border-color:#d8a6a6}.btn:disabled{opacity:.45;cursor:not-allowed}.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.error{display:none;margin-top:12px;padding:10px;border-radius:6px;background:#fff0ef;border:1px solid #f0c0bc;color:#992b23;font-size:12px}.success{color:#237448;font-size:12px}.toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}.toolbar input,.toolbar select{border:1px solid #aabbd0;border-radius:6px;padding:9px 10px;font:inherit;font-size:12px;background:#fff}.toolbar input{min-width:250px;flex:1;max-width:460px}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}.stat{background:#f5f8fc;border:1px solid #e1e8f1;border-radius:7px;padding:12px}.stat span{display:block;color:#6d7c90;font-size:11px}.stat strong{display:block;color:#173d73;font-size:20px;margin-top:5px}.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:900px;font-size:12px}th{background:#edf3fa;color:#1a3e70;text-align:left;font-size:10px;letter-spacing:.03em}th,td{padding:10px 9px;border-bottom:1px solid #e7edf4;vertical-align:middle}td.num{text-align:right;font-variant-numeric:tabular-nums}.status{display:inline-block;padding:4px 7px;border-radius:4px;font-size:10px;font-weight:800}.status.active{background:#e8f6ee;color:#237448}.status.off{background:#fff0ed;color:#a33d2c}.empty{text-align:center;padding:28px;color:#728096}.small-actions{display:flex;gap:6px;white-space:nowrap}.small-actions .btn{padding:6px 9px}.hidden{display:none!important}@media(max-width:760px){header{padding:12px 14px}.header-right{font-size:10px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.wrap{margin:14px auto}.card{padding:13px}}
+</style>
+</head>
+<body>
+<header><div class="brand">℞ TAJ MEDICAL STORE<small>Private Invoice Administration</small></div><div class="header-right"><span id="signedInAs">Not signed in</span><button class="btn hidden" id="logoutBtn">Sign out</button></div></header>
+<main class="wrap">
+<section id="loginCard" class="card login">
+  <h1>Invoice Admin Login</h1>
+  <p class="muted">Sign in with the authorized TAJ invoice administrator account. Customers do not have access to this page.</p>
+  <form id="loginForm">
+    <div class="field"><label for="identity">Admin username or email</label><input id="identity" autocomplete="username" value="TMS@Invoices" required></div>
+    <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div>
+    <div class="actions" style="margin-top:16px"><button class="btn primary" id="loginBtn" type="submit">Sign in</button><button class="btn" id="resetPasswordBtn" type="button">Send password reset email</button></div>
+  </form>
+  <div class="error" id="loginError" role="alert"></div>
+  <p class="muted" style="margin-top:14px">Username is an alias for the authorized Firebase email account. Passwords are checked by Firebase Authentication and are not stored in this page.</p>
+</section>
+<section id="dashboard" class="hidden">
+  <div class="card">
+    <div class="toolbar"><div><strong>Customer Invoice Records</strong><div class="muted">Secure list of invoice links published by TAJ Medical Store POS</div></div><div class="actions"><button class="btn" id="refreshBtn">Refresh</button><button class="btn" id="exportBtn">Export CSV</button></div></div>
+    <div class="stats"><div class="stat"><span>Total invoices</span><strong id="statTotal">0</strong></div><div class="stat"><span>Active links</span><strong id="statActive">0</strong></div><div class="stat"><span>Disabled links</span><strong id="statDisabled">0</strong></div><div class="stat"><span>Total invoice value</span><strong id="statValue">Rs 0.00</strong></div></div>
+    <div class="toolbar"><input id="search" type="search" placeholder="Search invoice number, customer or token…"><select id="statusFilter"><option value="all">All invoices</option><option value="active">Active links</option><option value="disabled">Disabled links</option></select><span class="muted" id="resultCount">0 records</span></div>
+  </div>
+  <div class="card table-wrap"><table><thead><tr><th>Invoice No.</th><th>Date</th><th>Customer</th><th class="num">Grand Total</th><th>Payment</th><th>Link Status</th><th>Actions</th></tr></thead><tbody id="invoiceRows"><tr><td colspan="7" class="empty">Sign in to load invoices.</td></tr></tbody></table></div>
+  <div class="muted" id="pageStatus" aria-live="polite"></div>
+</section>
+</main>
+<script type="module">
+import{initializeApp,getApps,getApp}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import{getAuth,onAuthStateChanged,signInWithEmailAndPassword,sendPasswordResetEmail,signOut,setPersistence,browserLocalPersistence}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import{getFirestore,collection,getDocs,doc,updateDoc,deleteDoc}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import{FIREBASE_CONFIG,ADMIN_EMAIL}from'./firebase-config.js';
+const AUTHORIZED_EMAIL='farhanalipervez@gmail.com';
+const USERNAME_ALIAS='tms@invoices';
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=v=>'Rs '+(Number(v)||0).toLocaleString('en-PK',{minimumFractionDigits:2,maximumFractionDigits:2});
+let auth,db,invoiceRecords=[];
+function showError(message){$('loginError').textContent=message;$('loginError').style.display='block';}
+function resolveIdentity(value){const v=String(value||'').trim().toLowerCase();if(v===USERNAME_ALIAS||v===AUTHORIZED_EMAIL.toLowerCase())return AUTHORIZED_EMAIL;return '';}
+function showDashboard(user){$('loginCard').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logoutBtn').classList.remove('hidden');$('signedInAs').textContent=user.email||AUTHORIZED_EMAIL;}
+function showLogin(){ $('loginCard').classList.remove('hidden');$('dashboard').classList.add('hidden');$('logoutBtn').classList.add('hidden');$('signedInAs').textContent='Not signed in'; }
+async function refreshInvoices(){
+  $('pageStatus').textContent='Loading invoice records…';
+  try{
+    const snapshot=await getDocs(collection(db,'tms_publicInvoices'));
+    invoiceRecords=snapshot.docs.map(s=>({token:s.id,...s.data()})).sort((a,b)=>new Date(b.dateTime||b.updatedAt||0)-new Date(a.dateTime||a.updatedAt||0));
+    renderInvoices();$('pageStatus').textContent='Loaded '+invoiceRecords.length+' invoice record(s).';
+  }catch(error){console.error(error);$('pageStatus').textContent='Could not load invoices: '+(error.message||error)+' — check that the merged Firestore rules have been published.';}
+}
+function renderInvoices(){
+  const term=$('search').value.trim().toLowerCase(),filter=$('statusFilter').value;
+  const rows=invoiceRecords.filter(x=>{
+    const active=x.active===true;
+    if(filter==='active'&&!active)return false;if(filter==='disabled'&&active)return false;
+    const hay=[x.invoiceNo,x.customerName,x.token,x.paymentStatus].join(' ').toLowerCase();return !term||hay.includes(term);
+  });
+  const active=invoiceRecords.filter(x=>x.active===true).length;
+  $('statTotal').textContent=invoiceRecords.length;$('statActive').textContent=active;$('statDisabled').textContent=invoiceRecords.length-active;
+  $('statValue').textContent=money(invoiceRecords.reduce((a,x)=>a+(Number(x.grandTotal)||0),0));$('resultCount').textContent=rows.length+' shown';
+  if(!rows.length){$('invoiceRows').innerHTML='<tr><td colspan="7" class="empty">No matching invoices found.</td></tr>';return;}
+  $('invoiceRows').innerHTML=rows.map(x=>{
+    const active=x.active===true,href='invoice.html?t='+encodeURIComponent(x.token);
+    return `<tr><td><strong>${esc(x.invoiceNo||'—')}</strong><br><span class="muted">${esc(x.token.slice(0,10))}…</span></td><td>${esc(x.dateTime?new Date(x.dateTime).toLocaleString('en-PK'):'—')}</td><td>${esc(x.customerName||'Walk-in customer')}</td><td class="num">${money(x.grandTotal)}</td><td>${esc(x.paymentStatus||'—')}</td><td><span class="status ${active?'active':'off'}">${active?'ACTIVE':'DISABLED'}</span></td><td><div class="small-actions"><button class="btn" data-open="${esc(x.token)}" ${active?'':'disabled'}>Open</button><button class="btn" data-toggle="${esc(x.token)}">${active?'Disable':'Enable'}</button><button class="btn danger" data-delete="${esc(x.token)}">Delete</button></div></td></tr>`;
+  }).join('');
+}
+$('loginForm').addEventListener('submit',async event=>{
+  event.preventDefault();$('loginError').style.display='none';
+  const email=resolveIdentity($('identity').value),password=$('password').value;
+  if(!email){showError('This username is not authorized for invoice administration.');return;}
+  $('loginBtn').disabled=true;$('loginBtn').textContent='Signing in…';
+  try{
+    const result=await signInWithEmailAndPassword(auth,email,password);
+    if(String(result.user.email||'').toLowerCase()!==AUTHORIZED_EMAIL.toLowerCase()){
+      await signOut(auth);throw new Error('This account is not authorized.');
+    }
+    $('password').value='';showDashboard(result.user);await refreshInvoices();
+  }catch(error){showError(error.code==='auth/invalid-credential'?'Incorrect username or password.':(error.message||'Sign-in failed.'));}
+  finally{$('loginBtn').disabled=false;$('loginBtn').textContent='Sign in';}
+});
+$('resetPasswordBtn').addEventListener('click',async()=>{const email=resolveIdentity($('identity').value);if(!email){showError('Use the authorized admin username or email first.');return;}try{await sendPasswordResetEmail(auth,email);showError('Password reset email sent to '+email+'. Check the inbox and follow the secure reset link.');$('loginError').style.display='block';$('loginError').style.background='#edf8f1';$('loginError').style.borderColor='#b7dec4';$('loginError').style.color='#21653d';}catch(error){showError(error.message||'Could not send the reset email.');}});
+$('logoutBtn').addEventListener('click',async()=>{await signOut(auth);invoiceRecords=[];showLogin();});
+$('refreshBtn').addEventListener('click',refreshInvoices);$('search').addEventListener('input',renderInvoices);$('statusFilter').addEventListener('change',renderInvoices);
+$('invoiceRows').addEventListener('click',async event=>{
+  const open=event.target.closest('[data-open]');if(open){const href='invoice.html?t='+encodeURIComponent(open.dataset.open);window.open(new URL(href,location.href).href,'_blank','noopener');return;}
+  const toggle=event.target.closest('[data-toggle]');if(toggle){const item=invoiceRecords.find(x=>x.token===toggle.dataset.toggle);if(!item)return;const next=item.active!==true;if(!confirm((next?'Enable':'Disable')+' this invoice link?'))return;toggle.disabled=true;try{await updateDoc(doc(db,'tms_publicInvoices',item.token),{active:next,updatedAt:new Date().toISOString()});await refreshInvoices();}catch(e){alert('Could not update invoice: '+e.message);toggle.disabled=false;}return;}
+  const del=event.target.closest('[data-delete]');if(del){const item=invoiceRecords.find(x=>x.token===del.dataset.delete);if(!item)return;if(!confirm('Permanently delete '+(item.invoiceNo||'this invoice')+'? This cannot be undone.'))return;del.disabled=true;try{await deleteDoc(doc(db,'tms_publicInvoices',item.token));await refreshInvoices();}catch(e){alert('Could not delete invoice: '+e.message);del.disabled=false;}}
+});
+$('exportBtn').addEventListener('click',()=>{
+  const rows=[['Invoice No','Date','Customer','Grand Total','Amount Received','Balance Due','Payment Status','Active','Token'],...invoiceRecords.map(x=>[x.invoiceNo||'',x.dateTime||'',x.customerName||'',Number(x.grandTotal)||0,Number(x.amountReceived)||0,Number(x.balanceDue)||0,x.paymentStatus||'',x.active===true?'yes':'no',x.token])];
+  const csv=rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='taj-invoice-register.csv';a.click();URL.revokeObjectURL(url);
+});
+try{
+  const app=getApps().length?getApp():initializeApp(FIREBASE_CONFIG);auth=getAuth(app);db=getFirestore(app);
+  await setPersistence(auth,browserLocalPersistence);
+  onAuthStateChanged(auth,async user=>{
+    if(user&&String(user.email||'').toLowerCase()===AUTHORIZED_EMAIL.toLowerCase()){showDashboard(user);if(!invoiceRecords.length)await refreshInvoices();}
+    else{if(user)await signOut(auth);showLogin();}
+  });
+}catch(error){console.error(error);showError('Firebase could not initialize. Check firebase-config.js and your Internet connection.');}
+</script>
+</body></html>
